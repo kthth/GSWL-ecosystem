@@ -34,6 +34,29 @@ def check_env():
             sys.exit(1)
 
 
+def convert_csv_separator(infile, outfile):
+    """
+    Convert existing separator to ','. Try and infer it from file.
+    """
+
+    import csv
+
+    cline = []
+
+    with open(infile, 'r') as svs:
+        dialect = csv.Sniffer().sniff(svs.read(1024), delimiters=";,")
+        svs.seek(0)
+        cread = csv.reader(svs, dialect)
+        for row in cread:
+            cline.append(row)
+
+    with open(outfile, 'w') as svs:
+        cwrite = csv.writer(svs, delimiter=",")
+        for row in cline:
+            cwrite.writerow(row)
+# def convert_csv_separator ends here
+
+
 def ignore_transactions(lines, patterns):
     """
     Returns a) a new list of lines exluding some of the original lines and b) a
@@ -93,9 +116,13 @@ def main(argv=None):
         # Get account config.
         acfg = cfg[account_underscore]
 
+        _, tmp_csv_to_convert = tempfile.mkstemp()
+        convert_csv_separator(csv_filename, tmp_csv_to_convert)
+
         # Modify CSV file (delete/modify lines, add header, ...).
         _, tmp_csv_filename = tempfile.mkstemp()
-        with open(csv_filename, errors='replace') as csv_fh:
+
+        with open(tmp_csv_to_convert, errors='replace') as csv_fh:
             lines = csv_fh.readlines()
             lines = [re.sub(r'[^\x00-\x7F]+', '_', l) for l in lines]
             lines = lines[int(acfg['ignored_header_lines']):]
